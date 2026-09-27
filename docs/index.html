@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mflux-rs - Native Apple Silicon FLUX.1 in Rust</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="glow-bg"></div>
+
+  <header class="navbar">
+    <div class="nav-brand">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">mflux-rs</span>
+      <span class="badge">v0.0.1</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#overview">Architecture</a>
+      <a href="#simulator">Flow Simulator</a>
+      <a href="#rope-vis">3D RoPE</a>
+      <a href="#latents">Latent Calculator</a>
+      <a href="https://github.com/bhubbard/mflux-rs" class="github-btn" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-badge">Apple Silicon Unified Memory • MLX Metal Acceleration</div>
+      <h1>Native Apple Silicon FLUX.1 in Safe Rust</h1>
+      <p class="hero-desc">
+        A 100% pure Rust port of Black Forest Labs' FLUX.1 architecture, powered by MLX.
+        Features dual-stream MMDiT blocks, 3D rotary embeddings, flow-matching Euler ODE solver,
+        and high-speed tiled VAE decoding with zero Python runtime overhead.
+      </p>
+      <div class="hero-actions">
+        <a href="#simulator" class="btn btn-primary">Try Interactive Simulator</a>
+        <a href="https://github.com/bhubbard/mflux-rs" class="btn btn-secondary">View Source Code</a>
+      </div>
+    </section>
+
+    <!-- Architecture Diagram Section -->
+    <section id="overview" class="section">
+      <div class="section-header">
+        <h2>FLUX.1 MMDiT Architecture</h2>
+        <p>Multimodal Diffusion Transformer architecture designed for text-to-image synthesis</p>
+      </div>
+
+      <div class="arch-grid">
+        <div class="arch-card">
+          <div class="card-icon">🔀</div>
+          <h3>Dual-Stream MMDiT</h3>
+          <p>19 joint transformer blocks allowing simultaneous bidirectional cross-attention between 4096-dim T5 prompt embeddings and 64-channel latent image patches.</p>
+        </div>
+        <div class="arch-card">
+          <div class="card-icon">⚡</div>
+          <h3>Single-Stream Blocks</h3>
+          <p>38 concatenated transformer blocks where text tokens and image patch tokens fuse into a single self-attention sequence for unified multimodal diffusion.</p>
+        </div>
+        <div class="arch-card">
+          <div class="card-icon">📐</div>
+          <h3>3D RoPE Coordinates</h3>
+          <p>Multi-dimensional Rotary Position Embeddings split across axes [16, 56, 56] encoding spatial row, column, and frame positioning.</p>
+        </div>
+        <div class="arch-card">
+          <div class="card-icon">🌊</div>
+          <h3>Flow-Matching Euler</h3>
+          <p>Linear vector field integration with empirical trajectory shift factor μ and terminal stretch parameter σ<sub>terminal</sub> = 0.02.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Flow Matching Simulator -->
+    <section id="simulator" class="section">
+      <div class="section-header">
+        <h2>Interactive Flow-Matching ODE Solver</h2>
+        <p>Simulate the exact diffusion trajectory sigmas and timesteps calculated by <code>FlowMatchEulerDiscreteScheduler</code></p>
+      </div>
+
+      <div class="card interactive-card">
+        <div class="controls-row">
+          <div class="control-group">
+            <label for="model-variant">Model Variant:</label>
+            <select id="model-variant">
+              <option value="schnell">FLUX.1-schnell (4-step distilled)</option>
+              <option value="dev">FLUX.1-dev (guidance-distilled)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="step-count">Inference Steps (<span id="step-count-val">4</span>):</label>
+            <input type="range" id="step-count" min="1" max="50" value="4">
+          </div>
+          <div class="control-group">
+            <label for="img-resolution">Resolution:</label>
+            <select id="img-resolution">
+              <option value="512">512 × 512 (1024 tokens)</option>
+              <option value="768">768 × 768 (2304 tokens)</option>
+              <option value="1024" selected>1024 × 1024 (4096 tokens)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="canvas-container">
+          <canvas id="trajectory-canvas" width="800" height="240"></canvas>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="schedule-table">
+            <thead>
+              <tr>
+                <th>Step</th>
+                <th>Sigma (σ<sub>t</sub>)</th>
+                <th>Timestep (t)</th>
+                <th>Δt (dt)</th>
+                <th>Trajectory Phase</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-tbody">
+              <!-- populated by app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive 3D RoPE Visualizer -->
+    <section id="rope-vis" class="section">
+      <div class="section-header">
+        <h2>3D Rotary Position Embedding (RoPE) Visualizer</h2>
+        <p>Explore the rotational frequency projections across axes [16, 56, 56] summing to head dimension 128</p>
+      </div>
+
+      <div class="card interactive-card">
+        <div class="controls-row">
+          <div class="control-group">
+            <label for="pos-x">X Coordinate (Col: 0..64): <span id="pos-x-val">16</span></label>
+            <input type="range" id="pos-x" min="0" max="64" value="16">
+          </div>
+          <div class="control-group">
+            <label for="pos-y">Y Coordinate (Row: 0..64): <span id="pos-y-val">16</span></label>
+            <input type="range" id="pos-y" min="0" max="64" value="16">
+          </div>
+          <div class="control-group">
+            <label for="pos-t">T Coordinate (Frame: 0..8): <span id="pos-t-val">0</span></label>
+            <input type="range" id="pos-t" min="0" max="8" value="0">
+          </div>
+        </div>
+
+        <div class="rope-visualizer">
+          <div class="rope-axis-card">
+            <h4>Axis 0 (Temporal, Dim: 16)</h4>
+            <div class="frequencies-bar" id="axis0-bars"></div>
+          </div>
+          <div class="rope-axis-card">
+            <h4>Axis 1 (Row Y, Dim: 56)</h4>
+            <div class="frequencies-bar" id="axis1-bars"></div>
+          </div>
+          <div class="rope-axis-card">
+            <h4>Axis 2 (Col X, Dim: 56)</h4>
+            <div class="frequencies-bar" id="axis2-bars"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Latent Token & VRAM Calculator -->
+    <section id="latents" class="section">
+      <div class="section-header">
+        <h2>Patch Packing & Memory Calculator</h2>
+        <p>Calculate token sequence lengths, patch dimensions, and unified RAM requirements</p>
+      </div>
+
+      <div class="card calc-card">
+        <div class="calc-grid">
+          <div class="calc-item">
+            <span class="calc-label">Target Width</span>
+            <input type="number" id="calc-w" value="1024" step="64" min="256" max="2048">
+          </div>
+          <div class="calc-item">
+            <span class="calc-label">Target Height</span>
+            <input type="number" id="calc-h" value="1024" step="64" min="256" max="2048">
+          </div>
+          <div class="calc-item">
+            <span class="calc-label">Precision</span>
+            <select id="calc-prec">
+              <option value="16">16-bit Float (FP16 / BF16)</option>
+              <option value="8">8-bit Quantized (Q8_0)</option>
+              <option value="4" selected>4-bit Quantized (Q4_0)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <span class="stat-num" id="stat-spatial">128 × 128</span>
+            <span class="stat-name">Spatial Latents (H/8 × W/8)</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="stat-patches">64 × 64</span>
+            <span class="stat-name">Patch Grid (H/16 × W/16)</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="stat-tokens">4,096</span>
+            <span class="stat-name">Image Sequence Tokens</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="stat-vram">~8.4 GB</span>
+            <span class="stat-name">Est. Peak Unified RAM</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLI Usage Section -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Command Line Usage</h2>
+        <p>Fast, scriptable CLI built directly into the binary</p>
+      </div>
+
+      <div class="code-terminal">
+        <div class="terminal-bar">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="terminal-title">bash - mflux CLI</span>
+        </div>
+        <pre><code><span class="c"># Generate with FLUX.1-schnell in 4 steps</span>
+<span class="cmd">mflux</span> generate --prompt <span class="str">"A cinematic shot of a cyberpunk city in rain"</span> --model schnell --steps 4
+
+<span class="c"># Generate with FLUX.1-dev with guidance scale 3.5</span>
+<span class="cmd">mflux</span> generate --prompt <span class="str">"Studio portrait of an astronaut on Mars"</span> --model dev --steps 25 --guidance 3.5 --output mars.png
+
+<span class="c"># Benchmark step latency on Apple Silicon Metal</span>
+<span class="cmd">mflux</span> bench --model schnell --steps 4
+
+<span class="c"># Inspect model parameters and memory footprint</span>
+<span class="cmd">mflux</span> info --model dev</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <p>Released under MIT OR Apache-2.0 License • Crafted for Apple Silicon with Rust & MLX</p>
+      <p><a href="https://github.com/bhubbard/mflux-rs">github.com/bhubbard/mflux-rs</a></p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
